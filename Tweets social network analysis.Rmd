@@ -1,0 +1,266 @@
+---
+title: "Tweets social network analysis"
+author: "Xinyue Tan"
+date: "May 4, 2019"
+output: pdf_document
+---
+
+```{r load data, warning=FALSE, message=FALSE}
+scores <- read.csv('scores.csv', header = TRUE)
+tweets <- read.csv('tweets.csv', header = TRUE)
+
+```
+
+
+# Data Wrangling
+```{r formatting, warning=FALSE, message=FALSE}
+
+tweets_with_reply <- tweets[is.na(tweets$reply)==0,]
+rownames(tweets_with_reply) <- NULL
+
+# Number of students with social media prescence
+print(length(unique(tweets$id))) 
+# All students in the data science course post at least one tweet during the past seven weeks.
+
+# Number of students who received comments
+print(length(unique(tweets_with_reply$reply)))
+
+#Replace student id with identification number
+tweets_with_reply$id <- as.character(tweets_with_reply$id)
+tweets_with_reply$reply <- as.character(tweets_with_reply$reply)
+
+for (i in 1:60){
+  id <- scores[i, 'id']
+  tweets_with_reply$id <- replace(tweets_with_reply$id, tweets_with_reply$id==id, rep(i, sum(tweets_with_reply$id==id)))
+  tweets_with_reply$reply <- replace(tweets_with_reply$reply, tweets_with_reply$reply==id, rep(i, sum(tweets_with_reply$reply==id)))
+}
+
+tweets_with_reply$id <- as.factor(tweets_with_reply$id)
+tweets_with_reply$reply <- as.factor(tweets_with_reply$reply)
+
+```
+
+
+# Visualize the Networks
+## Quick Visualization
+```{r , warning=FALSE, message=FALSE}
+library(igraph)
+
+# Plot the graphs using the force directed graphing technique Fruchertman-Reingold!
+tweets_with_reply$id <- as.factor(tweets_with_reply$id)
+tweets_with_reply$reply <- as.factor(tweets_with_reply$reply)
+
+tweets.graph <- graph.data.frame(tweets_with_reply[,c('id','reply')], directed = TRUE)
+plot(tweets.graph, layout=layout.fruchterman.reingold, vertex.size=14, arrow.size=.0001)
+#The data sets are from two iterations of this course, one in 2014 and one in 2015. From the network, we know that students numbered 1-30 are from year 2014, and students numbered 31-60 are from year 2015.
+
+
+#Seperate students from 2014 to 2015
+scores$id <- 1:60
+scores$id <- as.factor(scores$id)
+
+scores1 <- scores[1:30,]
+scores2 <- scores[31:60,]
+rownames(scores2) <- NULL
+
+tweets_with_reply$id <- as.numeric(as.character(tweets_with_reply$id))
+
+tweets1 <- tweets_with_reply[tweets_with_reply$id<=30,]
+tweets2 <- tweets_with_reply[tweets_with_reply$id>30,]
+tweets1$id <- as.factor(tweets1$id)
+tweets2$id <- as.factor(tweets2$id)
+
+# Plot the 2014 SNA graph
+tweets1.graph <- graph.data.frame(tweets1[,c('id','reply')], directed = TRUE)
+pdf("Quick_Visualization_2014SNA.pdf")
+plot(tweets1.graph, layout=layout.fruchterman.reingold, vertex.size=14, arrow.size=.0001)
+dev.off()
+
+## Plot the 2015 SNA graph
+tweets2.graph <- graph.data.frame(tweets2[,c('id','reply')], directed = TRUE)
+pdf("Quick_Visualization_2015SNA.pdf")
+plot(tweets2.graph, layout=layout.fruchterman.reingold, vertex.size=14, arrow.size=.0001)
+dev.off()
+
+```
+## Visualization using statnet
+```{r , warning=FALSE, message=FALSE}
+install.packages("statnet", dependencies=TRUE)
+library(statnet)
+
+# Class 2014
+tweets_net1<- data.frame(tweets1$id, tweets1$reply)
+
+net1<-network(tweets_net1, directed=TRUE, matrix.type="edgelist") 
+census1 <- clique.census(net1, mode="graph")
+ls(census1)              
+
+comemb1 <- clique.census(net1, clique.comembership="sum")$clique.comemb # Co-membership matrix
+coords1 <- cmdscale(1/(1+comemb1))        # Perform an MDS  (multidimensional scaling) so that nodes with more overlap will have smaller distances between them in an n-dimensional space/ the "closer the vertics" 
+ 
+CoNet1 <- network(comemb1, matrix.type="adjacency", directed=FALSE,
+                 ignore.eval=FALSE, names.eval="weight")
+Coweights1 <- as.sociomatrix(CoNet1,"weight") 
+
+pdf("Visualization_statnet1.pdf")
+gplot(net1,coord=coords1, usearrows=FALSE, displaylabels=TRUE,
+                  edge.lwd=CoNet1%e%'weight'*2) 
+dev.off()
+
+# Class 2015
+tweets_net2<- data.frame(tweets2$id, tweets2$reply)
+
+net2<-network(tweets_net2, directed=TRUE, matrix.type="edgelist") 
+census2 <- clique.census(net2, mode="graph")
+ls(census2)              
+
+comemb2 <- clique.census(net2, clique.comembership="sum")$clique.comemb # Co-membership matrix
+coords2 <- cmdscale(1/(1+comemb2))        # Perform an MDS  (multidimensional scaling) so that nodes with more overlap will have smaller distances between them in an n-dimensional space/ the "closer the vertics" 
+ 
+CoNet2 <- network(comemb2, matrix.type="adjacency", directed=FALSE,
+                 ignore.eval=FALSE, names.eval="weight")
+Coweights2 <- as.sociomatrix(CoNet2,"weight") 
+
+pdf("Visualization_statnet2.pdf")
+gplot(net2,coord=coords2, usearrows=FALSE, displaylabels=TRUE,
+                  edge.lwd=CoNet2%e%'weight'*2) 
+dev.off()
+```
+
+# Centrality Measures
+## Degree Centrality
+```{r , warning=FALSE, message=FALSE}
+# Students from 2014
+centrality1 <- centr_degree(tweets1.graph, mode = 'all')
+which(centrality1$res==max(centrality1$res)) 
+# Student Number 11 has the highest degree centrality
+
+incentrality1 <- centr_degree(tweets1.graph, mode = 'in')
+which(incentrality1$res==max(incentrality1$res))
+# Student Number 11 and 19 has the highest in-degree centrality, which means they have high prestige or said to be prominet in class. They received the most reply from others, which indicates their importance.
+
+outcentrality1 <- centr_degree(tweets1.graph, mode = 'out')
+which(outcentrality1$res==max(outcentrality1$res))
+# Student 2,5,8,13,18,26 reply other people's the most. They are influential actors who make others aware of their views.
+
+# Students from 2015
+centrality2 <- centr_degree(tweets2.graph, mode = 'all')
+which(centrality2$res==max(centrality2$res))+30
+# Student Number 40 has the highest degree centrality
+
+incentrality2 <- centr_degree(tweets2.graph, mode = 'in')
+which(incentrality2$res==max(incentrality2$res))+30
+# Student Number 49 has the highest in-degree centrality
+
+outcentrality2 <- centr_degree(tweets2.graph, mode = 'out')
+which(outcentrality2$res==max(outcentrality2$res))+30
+# Student 33,42 reply other people's the most.
+
+```
+
+## Closeness Centrality
+```{r , warning=FALSE, message=FALSE}
+# Degree Centrality only take into account the immdeidate ties that an student has rather than indirect ties to all others.One student might be tied to a large number of others, but those others might be rather disconnected from the network as a whole. In a case like this, the student could be quite central, but only in a local neighborhood. 
+
+#Thus, closeness centraility approaches will be used to emphasize the distance of an a student to all others in the network by focusing on the distance from each student to all others. Student with the highest closness centrality is the social influencer within the data science course.
+
+closeness1 <- closeness(tweets1.graph, mode=c("all"), weights = NULL,normalized = FALSE)
+which.max(closeness1) # Student Number 4 has the highest closeness centrality, and he/she can influence the entire network most quickly.
+mean(closeness1) #the average of students'closeness of 2014 class is 0.0183
+
+
+closeness2 <- closeness(tweets2.graph, mode=c("all"), weights = NULL,normalized = FALSE)
+which.max(closeness2) # Student Number 51 has the highest closeness centrality
+mean(closeness2) #the average of students' closeness in 2015 class is 0.0188, which means the data science course is more connected than the class in 2014
+
+```
+
+# Cliques
+## Method one: Visualization of Cliques
+```{r , warning=FALSE, message=FALSE}
+# Clique is a sub-set of a network in which the actors are more closely and intensely tied to one another than they are to other members of the network.
+
+# Calculates the size of the largest clique(s)
+clique1 <- clique_num(tweets1.graph)
+print(clique1) # the size of the largest clique is  4 in 2014
+clique2 <- clique_num(tweets2.graph)
+print(clique2) # the size of the largest clique is 4 in 2015
+
+
+# Calculate the numebr of cliques
+count_max_cliques(tweets1.graph, min=3) # 2014 class has 40 cliques with minimum 3 students
+count_max_cliques(tweets2.graph, min=3)# 2015 class has 55 cliques with minimum 3 students
+
+
+# Students in the largest clique(s)
+largestclique1 <- largest_cliques(tweets1.graph)
+print(largestclique1) # the following students are in the largest cliques of the 2014 class: 1,2,5,8,16,17,20,23,24,26,27,28,29
+
+#Visualize the Six largest cliques in 2014 class
+plot(induced_subgraph(tweets1.graph,largestclique1 [[1]]))
+plot(induced_subgraph(tweets1.graph,largestclique1 [[2]]))
+plot(induced_subgraph(tweets1.graph,largestclique1 [[3]]))
+plot(induced_subgraph(tweets1.graph,largestclique1 [[4]]))
+plot(induced_subgraph(tweets1.graph,largestclique1 [[5]]))
+plot(induced_subgraph(tweets1.graph,largestclique1 [[6]]))
+
+
+largestclique2 <- largest_cliques(tweets2.graph)
+print(largestclique2) # the following students are in the largest cliques of the 2015 class:31,35,36,39,40,41,42,44,45,50,51,53,54,55,57
+
+#Visualize the Ten largest cliques in 2015 class
+plot(induced_subgraph(tweets2.graph,largestclique2 [[1]]))
+plot(induced_subgraph(tweets2.graph,largestclique2 [[2]]))
+plot(induced_subgraph(tweets2.graph,largestclique2 [[3]]))
+plot(induced_subgraph(tweets2.graph,largestclique2 [[4]]))
+plot(induced_subgraph(tweets2.graph,largestclique2 [[5]]))
+plot(induced_subgraph(tweets2.graph,largestclique2 [[6]]))
+plot(induced_subgraph(tweets2.graph,largestclique2 [[7]]))
+plot(induced_subgraph(tweets2.graph,largestclique2 [[8]]))
+plot(induced_subgraph(tweets2.graph,largestclique2 [[9]]))
+plot(induced_subgraph(tweets2.graph,largestclique2 [[10]]))
+
+```
+
+## Method two: Visualization of Cliques by Spinglass
+```{r , warning=FALSE, message=FALSE}
+# 2014 Class
+sg1 <- cluster_spinglass(tweets1.graph) # find communities in the 2014 SNA grap
+pdf("Spinglass1.pdf")
+plot(sg1, tweets1.graph)
+dev.off()
+
+# Save the work in a data frame. Spinglass divide the network into 4 groups
+SG.Communities1 <- data.frame(sg1$membership, sg1$names)
+SG.Communities1[SG.Communities1$sg1.membership== "1",] #Group 1 has Students Number 24,8,2,14,1,22
+SG.Communities1[SG.Communities1$sg1.membership== "2",] #Group 2 has Students Number 7,4,20,13,19,6,5,26
+SG.Communities1[SG.Communities1$sg1.membership== "3",] #Group 3 has Students Number 27,12,16,15,29,30,18,10
+SG.Communities1[SG.Communities1$sg1.membership== "4",] #Group 4 has Students Number 11,21,17,28,23,25,3,9
+
+# 2015 Class
+sg2 <- cluster_spinglass(tweets2.graph) # find communities in the 2014 SNA grap
+pdf("Spinglass2.pdf")
+plot(sg2, tweets2.graph)
+dev.off()
+
+# Save the work in a data frame. Spinglass divide the network into 4 groups
+SG.Communities2 <- data.frame(sg2$membership, sg2$names)
+SG.Communities2[SG.Communities1$sg1.membership== "1",] #Group 1 has Students Number 33,52,42,57,56,32
+SG.Communities2[SG.Communities1$sg1.membership== "2",] #Group 2 has Students Number 58,45,55,43,49,53,47,38
+SG.Communities2[SG.Communities1$sg1.membership== "3",] #Group 3 has Students Number 33,44,40,41,51,54,46,39
+SG.Communities2[SG.Communities1$sg1.membership== "4",] #Group 4 has Students Number 37,50,35,34,36,59,60,48
+
+```
+
+
+# Components & Cutpoints
+```{r , warning=FALSE, message=FALSE}
+#Articuation points or cut vertices are vertices whose removal increases the number of connected components in a graph.
+
+cutpoint1 <- articulation_points(tweets1.graph)
+print(cutpoint1) #there is no cutpoint in 2014 SNA, which means that all students tweet with each other and there are no isolated groups of students connected by only one student. This is also support by the visual representation of the network
+
+cutpoint2 <- articulation_points(tweets2.graph)
+print(cutpoint2) #there is no cutpoint in 2015 SNA,too
+
+```

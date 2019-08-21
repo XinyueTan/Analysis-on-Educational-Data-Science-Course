@@ -1,0 +1,261 @@
+---
+title: "Scores Regression Analysis"
+author: "Xinyue Tan"
+date: "May 5, 2019"
+output: pdf_document
+---
+
+```{r load data, warning=FALSE, message=FALSE}
+scores <- read.csv('scores.csv', header = TRUE)
+scores$id <- 1:60
+scores$id <- as.factor(scores$id) # as label
+```
+
+#Reformat a new table for analysis
+```{r format data, warning=FALSE, message=FALSE}
+# Creat a new vector for each individual student
+record <- c()
+for (i in 1:60){
+  unit <- c(scores$unit.choice.1[i], scores$unit.choice.2[i], scores$unit.choice.3[i], 
+            scores$unit.choice.4[i], scores$unit.choice.5[i], scores$unit.choice.6[i])
+  minute <- c(scores$minutes.1[i], scores$minutes.2[i], scores$minutes.3[i], 
+              scores$minutes.4[i], scores$minutes.5[i], scores$minutes.6[i])
+  score <- c(scores$score1[i], scores$score2[i], scores$score3[i], 
+             scores$score4[i], scores$score5[i], scores$score6[i])
+  minute <- minute[order(unit)]
+  score <- score[order(unit)]
+  
+# New Record for each student ordered by year, miniutes spent on each unit, score earned on each unit and final score
+  new <- c(i, scores$year[i], minute, score, scores$final.score[i])
+  
+# Combine records of Student 1-60, as vector
+  record <- rbind(record, new)
+  
+}
+
+# Change the format from vector to data frame
+df <- data.frame(record)
+
+# Rename the data frame 
+rownames(df) <- NULL
+colnames(df) <- c('id', 'year', 'minute1', 'minute2', 'minute3', 'minute4', 'minute5', 'minute6', 
+                        'score1', 'score2', 'score3', 'score4', 'score5', 'score6', 'final.score')
+
+df$id   <- as.factor(df$id) # as label
+df$year <- as.factor(df$year) # as label
+
+print(head(df,5))
+
+# Seperate students in 2014 from 2015
+scores1 <- df[1:30,]
+scores2 <- df[31:60,]
+rownames(scores2) <- NULL # Change to default, 1-60
+
+# Combine data and categorize as unit, minute and score
+colnames(scores) <- rep('x', 21)
+unitdf <- rbind(scores[3:5], scores[6:8])
+unitdf <- rbind(unitdf, scores[9:11])
+unitdf <- rbind(unitdf, scores[12:14])
+unitdf <- rbind(unitdf, scores[15:17])
+unitdf <- rbind(unitdf, scores[18:20])
+colnames(unitdf) <- c('unit', 'minute', 'score')
+
+print(head(unitdf,5))
+```
+
+#Data visualization
+```{r visualize data, warning=FALSE, message=FALSE}
+install.packages("ggpubr")
+library("ggpubr")
+
+# Visualize the relationship between unit and time spent (minutes) by ggline
+pdf("ggline_unit_minute.pdf")
+ggline(unitdf, x = 'unit', y = 'minute', 
+       add = c("mean_se", "jitter"), 
+       order = c("Unit 1", "Unit 2", "Unit 3", "Unit 4", "Unit 5", "Unit 6"),
+       ylab = "Minute", xlab = 'Unit')
+dev.off()
+
+# Visulize the relationship between unit and score by ggline
+pdf("ggline_unit_score.pdf")
+ggline(unitdf, x = 'unit', y = 'score', 
+       add = c("mean_se", "jitter"), 
+       order = c("Unit 1", "Unit 2", "Unit 3", "Unit 4", "Unit 5", "Unit 6"),
+       ylab = "Score", xlab = 'Unit')
+dev.off()
+
+# Visualize the relationship between unit and time spent (minutes) by ggboxplot
+pdf("ggbloxplot_unit_minute.pdf")
+ggboxplot(unitdf, x = "unit", y = "minute", 
+          color = "unit", palette = c("#00AFBB", "#E7B800", "#FC4E07", "green", "blue", "red"),
+          order = c("Unit 1", "Unit 2", "Unit 3", "Unit 4", "Unit 5", "Unit 6"),
+          ylab = "Minute", xlab = "Unit")
+dev.off()
+# Boxplot display the distribution/ variability of data based on a five numebr summary (minimum,first quartile (Q1), median, third quartile (Q3), and “maximum”).
+# The boxplot for unit 2 and 3 is comparatively tall, which shows very different distributions of time spent on that unit. Also, by observing the shape of the box plot, we can identify the skewness of the data. Also, the boxplots for unit 1,2,4,5,6 are approximately symmetric, which means that the time students spent on each unit follows a normal distributed. While Unit 3 is positive skewed, which means students generally spent less time on this unit.
+
+
+# Visulize the relationship between unit and score by ggboxplot
+pdf("ggboxplot_unit_score.pdf")
+ggboxplot(unitdf, x = "unit", y = "score", 
+          color = "unit", palette = c("#00AFBB", "#E7B800", "#FC4E07", "green", "blue", "red"),
+          order = c("Unit 1", "Unit 2", "Unit 3", "Unit 4", "Unit 5", "Unit 6"),
+          ylab = "Score", xlab = "Unit")
+dev.off()
+# The boxplot for all units are compratively short, which means that overall students scores does not widely spread out. 
+
+
+```
+# Tests between units
+## ANOVA Test
+```{r, warning=FALSE, message=FALSE}
+# Compute the analysis of variance by using ANOVA, the variance among and between different groups are used to analyze the differences among group means in the sample
+
+# I want to determine whehter there is any significant differences of the time spent on each unit andwhehter there is any significant differences of the scores earned in each unit. Thus, I compare the p-value to the significant level (alpha= 0.05) to assess the null hypothess. A significance level of 0.05 indicates a 5% risk of concluding that a difference exists when there is no actual difference.
+res.aov1 <- aov(minute ~ unit, data = unitdf)
+res.aov2 <- aov(score  ~ unit, data = unitdf)
+
+
+# Summary of the analysis
+print(summary(res.aov1)) 
+# The p-value is 0.352, which is greater than the significant level (alpha= 0.05). We do not have enough evidence to reject the null hypothesis that the time students spent on each unit are all equal.
+
+print(summary(res.aov2))
+# The p-value is 0.418, which is greater than the significant level (alpha= 0.05). We do not have enough confidence to reject the null hypothesis that the scores students have on each unit are all equal. 
+# This means that the matery level of students on each unit topic is the same, and there is not need to have intervention/ extra session to review certain unit topic.
+```
+## Test assumptions for ANOVA
+```{r, warning=FALSE, message=FALSE}
+# homogeneity of variance: test the assumption the independent sample ANOVA that all comparison groups have the same variance
+
+# normality of the residuals: test the assumption the residuals follow a normal distribution, since if residuals are notmally distributed, it means that Y is normally distributed within a value o f X.
+# Method one: Visualization
+layout(matrix(c(1,2,3,4),2,2))
+# optional layout 
+pdf("Test_assumptions1.pdf")
+plot(res.aov1) 
+dev.off()
+# The first graph shows a similar scatter for each unit in the residuals. Also, the independent samples ANOVA are generally robust to violatons of the assumption as long as group sizes are equal.Thus, the assumption of homogeneity of variance are supported.
+# The qqplot shows the the amount of time (mins) spent on each unit are not normally distributed, however, one-way ANOVA is robust to assumption. 
+
+pdf("Test_assumptions2.pdf")
+plot(res.aov2) 
+dev.off()
+# The score-unit residuals vs fitted value and qqplot show the same pattern.
+
+
+# Analysis of covariance, to measure how much two random variables vary together
+fit1 <- aov(score ~ unit + minute, data = unitdf)
+summary(fit1)
+# Both variable "unit" and "minute" have no significant effect on "score" as the p value in both cases is higher than 0.05. The interaction between these variables is not significant, too as the p value is higher than 0.05.
+```
+
+#Post-hoc analysis: Multiple pairwise-comparisons
+```{r, warning=FALSE, message=FALSE}
+# Method one: Tuekey's Test, to compares the means of all units to the mean of every other unit. The output gives the differencec in means and confidence levels for all possible pairs.
+print(TukeyHSD(res.aov1))
+plot(TukeyHSD(res.aov1))
+#Given that all pairs contain 0 in the confidence intervals, students' time spent on each unit has no significant differences.
+
+print(TukeyHSD(res.aov2))
+plot(TukeyHSD(res.aov2))
+#Given that all pairs contain 0 in the confidence intervals, students' score of each unit has no significant differences.
+
+# Method two:
+pairwise.t.test(unitdf$minute, unitdf$unit, p.adjust.method = "BH")
+pairwise.t.test(unitdf$score,  unitdf$unit, p.adjust.method = "BH")
+# These results indicate that there is no significant difference betwen all the the time spent on each unit, and the scores of each unit, given the p- value is much higher than the alpha level of 0.05.
+
+```
+
+# Tests between classes
+```{r, warning=FALSE, message=FALSE}
+# To determine whehter any of the differences between the time spent on each unit/ scores students have on each unit of difference classes (Class 2014 and Class 2015) are statistically significant, we compare the p-value to the significant level (alpha= 0.05) to assess the null hypothess. A significance level of 0.05 indicates a 5% risk of concluding that a difference exists when there is no actual difference.
+
+# unit 1
+res.aov3 <- aov(minute1 ~ year, data = df)
+res.aov4 <- aov(score1  ~ year, data = df)
+print(summary(res.aov3)) # The p-value is 0.0344, which is lower than the significant level (alpha= 0.05). We reject the null hypothes, and conclude that is that the time spent on unit one are different for Class 2014 and Class 2015.Students in 2015 spent more time on unit one.
+print(summary(res.aov4)) # The p-value is 0.727, which is greater than the significant level (alpha= 0.05). We do not have enough evidence to reject the null hypothesis that the score students earned on unit one are all equal for Class 2014 and Class 2015.
+
+ggboxplot(df, x = "year", y = "minute1", 
+          color = "year", palette = c("#00AFBB", "#E7B800"),
+          order = c("2014", '2015'),
+          ylab = "Minute1", xlab = "Year")
+
+ggboxplot(df, x = "year", y = "score1", 
+          color = "year", palette = c("#00AFBB", "#E7B800"),
+          order = c("2014", '2015'),
+          ylab = "Score1", xlab = "Year")
+
+
+# unit 2
+res.aov5 <- aov(minute2 ~ year, data = df)
+res.aov6 <- aov(score2  ~ year, data = df)
+print(summary(res.aov5)) # The p-value is 0.335, cannot reject the null hypothes. The time spent on unit two are the same for Class 2014 and 2015.
+print(summary(res.aov6)) # The p-value is 0. 968, cannot reject the null hypothes. The scores of unit two are the same for Class 2014 and 2015.
+
+# unit 3
+res.aov7 <- aov(minute3 ~ year, data = df)
+res.aov8 <- aov(score3  ~ year, data = df)
+print(summary(res.aov7)) # The p-value is 0.085, cannot reject the null hypothes.
+print(summary(res.aov8))# The p-value is 0.196, cannot reject the null hypothes.
+
+
+# unit 4
+res.aov9  <- aov(minute4 ~ year, data = df)
+res.aov10 <- aov(score4  ~ year, data = df)
+print(summary(res.aov9)) # The p-value is 0.558, cannot reject the null hypothes.
+print(summary(res.aov10))# The p-value is 0.987, cannot reject the null hypothes.
+
+
+# unit 5
+res.aov11 <- aov(minute5 ~ year, data = df)
+res.aov12 <- aov(score5  ~ year, data = df)
+print(summary(res.aov11)) # The p-value is 0.235, cannot reject the null hypothes.
+print(summary(res.aov12))# The p-value is 0.26, cannot reject the null hypothes.
+
+# unit 6
+res.aov13 <- aov(minute6 ~ year, data = df)
+res.aov14 <- aov(score6  ~ year, data = df)
+print(summary(res.aov13)) # The p-value is 0.00633, which is lower than the significant level (alpha= 0.05). We reject the null hypothes, and conclude that is that the time spent on unit six are different for Class 2014 and Class 2015.
+ggboxplot(df, x = "year", y = "minute6", 
+          color = "year", palette = c("#00AFBB", "#E7B800"),
+          order = c("2014", '2015'),
+          ylab = "Minute6", xlab = "Year")
+# Students in 2015 spent more less on unit six.
+
+print(summary(res.aov14)) # The p-value is 0.206, cannot reject the null hypothes.
+
+
+# In conclusion, we cannot reject the hypothsis that the score students earned in each unit are equal for Class 2014 and Class 2015. 
+# First, this might due to assessment-instruction alignment in year 2014 and year 2015 (e.g.: test difficulty). 
+# Second, students may from the same social economic status (SES). The probability that an individual student will answer the item correctly will be meaningfully influenced by parental education levels and family income. For example, the high-level vocabularies used in the exam, and the concepts that are never mentioned in the students' family environement (e.g.: the definition of career path for students with jobless parents) will influence the correctness of certain answers.
+# Thirdly, students' inherited academic aptitudes and foundamental knowledge for data science course may the the same. Genetic inheritance plays a prominent role in determining how easy it is for children to acquire certain kinds of skills, such as inborn word-smarts, number-smarts, and spatial-smarts.The approximate percentages of items for which inherited academic aptitude was the dominant factor in science discipline is 50%.
+
+
+```
+
+# Linear regression- unit score and final score
+```{r, warning=FALSE, message=FALSE}
+
+form1 <- final.score ~ score1 + score2 + score3 + score4 + score5 + score6
+form2 <- final.score ~ score4
+
+
+fit1 <- lm(form1, data=df)
+fit2 <- lm(form2, data=df)
+
+
+print(fit1)
+summary(fit1)
+# For a given predictor, the p value evaluates if there is significant association betwen the predictor and the outcome variable. Given the p value, only change in score 4 are significantly associated to changes in final score, thus, these variables are removed from the model.
+
+print(fit2)
+summary(fit2)
+# The p value of the F-statistics is 0.0015, which is highly significant. If the evaluation schema does not change, students' final scores can be predicted by using final score= 0.4920+ 0.32161* score4. This means that, for a fixed score in unit 4, changes in unit 1,2,3,5,6 will not significantly affect final score. This might because all of the tested learning points was concentrated on unit 4. 
+
+# To increase students' motivation and encourage students to master key points in evey unit, I recommend the final exam to cover study materials from every sinlge unit. 
+
+```
+
