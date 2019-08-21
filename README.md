@@ -15,13 +15,13 @@ Permission was recieved from the students in this course to collect their tweets
 
 
 
-## Goal of the analysis
+## Goals of the analysis
 
 In this project, I will be working towards building several **social network diagrams** (graphs/sociograms) of the 2014 class and 2015 class for the instructors and then analyzing both centrality measures and clusters within the network. I will identify isolated students in both classes, given that there is an observed correlation between an individuals' connectivity to peers and their overall academic success. With the meaningful interpretation of the structure of the network, teachers can give interventions to prevent students' dropout and increase the overall connectivity in class.
 
 ### Social Network for class 2014 VS class 2015
 
-Class 2014             |  Class 2015
+Social Network for Class 2014             |  Social Network for Class 2015
 :-------------------------:|:-------------------------:
 ![](https://user-images.githubusercontent.com/46146748/63467190-dd329780-c432-11e9-9574-452f77962049.png)  |  ![](https://user-images.githubusercontent.com/46146748/63467242-fb989300-c432-11e9-9e22-b32446ab94cb.png)
 
@@ -42,7 +42,7 @@ Boxplot for Unit and Minute             |  Boxplot for Unit and Score
 ## Related Materials
 ### Information about Social Network Analysis
 
-Social network analysis (SNA) can be used to address research questions related to the level of participant engagement, identification of central participants and isolated students. Also, SNA provides instructors with the capacity to visualize group cohesion, network density, and evaluate the impact of intervention strategies on student engagement and connectivity by evaluating the evolution of participant relationships within discussions forums, 
+**Social network analysis (SNA)** can be used to address research questions related to the level of participant engagement, identification of central participants and isolated students. Also, SNA provides instructors with the capacity to visualize group cohesion, network density, and evaluate the impact of intervention strategies on student engagement and connectivity by evaluating the evolution of participant relationships within discussions forums, 
 
 #### Definitions and concepts
   * Isolated students: appear as nodes with no connections in terms of social and academic. Connections between nodes are weighted according to the number of posts and replies made between the participants
